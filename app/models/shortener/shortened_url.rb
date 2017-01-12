@@ -75,7 +75,8 @@ class Shortener::ShortenedUrl < ActiveRecord::Base
 
   def self.extract_token(token_str)
     # only use the leading valid characters
-    /^([#{Shortener.key_chars.join}]*).*/.match(token_str)[1]
+    # escape to ensure custom charsets with protected chars do not fail
+    /^([#{Regexp.escape(Shortener.key_chars.join)}]*).*/.match(token_str)[1]
   end
 
   def self.fetch_with_token(token: nil, additional_params: {}, track: true)
@@ -112,14 +113,21 @@ class Shortener::ShortenedUrl < ActiveRecord::Base
     end
   end
 
+  def to_param
+    unique_key
+  end
+
   private
 
   # the create method changed in rails 4...
   CREATE_METHOD_NAME =
-    if Rails::VERSION::MAJOR >= 4
+    if Rails::VERSION::MAJOR >= 5
+      "_create_record"
+    elsif Rails::VERSION::MAJOR == 4
       # And again in 4.0.6/4.1.2
-      if ((Rails::VERSION::MINOR == 0) && (Rails::VERSION::TINY < 6)) ||
-         ((Rails::VERSION::MINOR == 1) && (Rails::VERSION::TINY < 2))
+      if Rails::VERSION::MAJOR == 4 && (
+          ((Rails::VERSION::MINOR == 0) && (Rails::VERSION::TINY < 6)) ||
+          ((Rails::VERSION::MINOR == 1) && (Rails::VERSION::TINY < 2)))
         "create_record"
       else
         "_create_record"
